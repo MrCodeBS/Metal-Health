@@ -1,62 +1,70 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MindBot</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <header>
-    <h1>MindBot</h1>
-    <p class="tagline">Friendly, private psychology insights</p>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>MindBot</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>MindBot</h1>
+      <p class="tagline">Friendly, private psychology insights</p>
+    </header>
 
-  <main>
-    <section class="cards">
-      <div class="card">
-        <h2>Personality</h2>
-        <button id="start-assessment">Start personality assessment</button>
-        <canvas id="personalityRadar" width="400" height="400"></canvas>
-      </div>
-
-      <div class="card">
-        <h2>Mood</h2>
-        <button id="mood-checkin">Take 5-minute mood check</button>
-        <canvas id="moodChart" width="400" height="200"></canvas>
-      </div>
-
-      <div class="card">
-        <h2>Technique</h2>
-        <button id="get-breathing">Get breathing exercise</button>
-        <div id="technique"></div>
-      </div>
-
-      <div class="card">
-        <h2>Insight</h2>
-        <button id="random-fact">Random psychology insight</button>
-        <div id="fact"></div>
-      </div>
-    </section>
-
-    <section class="chat-section">
-      <div class="chat-card">
-        <h2>Chat with MindBot</h2>
-        <div id="chat-messages"></div>
-        <div class="chat-input-area">
-          <input type="text" id="chat-input" placeholder="Ask me about mental health, techniques, or psychology..." />
-          <button id="send-chat">Send</button>
+    <main>
+      <section class="cards">
+        <div class="card">
+          <h2>Personality</h2>
+          <button id="start-assessment">Start personality assessment</button>
+          <canvas id="personalityRadar" width="400" height="400"></canvas>
         </div>
-        <p class="chat-note">AI assistant requires GROQ_API_KEY to be configured.</p>
-      </div>
-    </section>
 
-    <section class="disclaimer">
-      <strong>Disclaimer:</strong> MindBot is for educational and wellness purposes only. It is not a substitute for professional mental health care.
-    </section>
-  </main>
+        <div class="card">
+          <h2>Mood</h2>
+          <button id="mood-checkin">Take 5-minute mood check</button>
+          <canvas id="moodChart" width="400" height="200"></canvas>
+        </div>
 
-  <script src="app.js"></script>
-</body>
+        <div class="card">
+          <h2>Technique</h2>
+          <button id="get-breathing">Get breathing exercise</button>
+          <div id="technique"></div>
+        </div>
+
+        <div class="card">
+          <h2>Insight</h2>
+          <button id="random-fact">Random psychology insight</button>
+          <div id="fact"></div>
+        </div>
+      </section>
+
+      <section class="chat-section">
+        <div class="chat-card">
+          <h2>Chat with MindBot</h2>
+          <div id="chat-messages"></div>
+          <div class="chat-input-area">
+            <input
+              type="text"
+              id="chat-input"
+              placeholder="Ask me about mental health, techniques, or psychology..."
+            />
+            <button id="send-chat">Send</button>
+          </div>
+          <p class="chat-note">
+            AI assistant requires GROQ_API_KEY to be configured.
+          </p>
+        </div>
+      </section>
+
+      <section class="disclaimer">
+        <strong>Disclaimer:</strong> MindBot is for educational and wellness
+        purposes only. It is not a substitute for professional mental health
+        care.
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
 </html>

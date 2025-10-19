@@ -12,49 +12,53 @@ const toolDefinitions = [
     type: "function",
     function: {
       name: "getTherapyTechnique",
-      description: "Retrieves therapy techniques by category (cbt, mindfulness, breathing) to help users with specific mental health needs.",
+      description:
+        "Retrieves therapy techniques by category (cbt, mindfulness, breathing) to help users with specific mental health needs.",
       parameters: {
         type: "object",
         properties: {
           category: {
             type: "string",
-            description: "The therapy technique category: 'cbt', 'mindfulness', 'breathing', or 'all'",
-            enum: ["cbt", "mindfulness", "breathing", "all"]
-          }
+            description:
+              "The therapy technique category: 'cbt', 'mindfulness', 'breathing', or 'all'",
+            enum: ["cbt", "mindfulness", "breathing", "all"],
+          },
         },
-        required: ["category"]
-      }
-    }
+        required: ["category"],
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "getPsychologyFact",
-      description: "Retrieves a random psychology fact or insight about cognitive biases, mental health research, or human behavior.",
+      description:
+        "Retrieves a random psychology fact or insight about cognitive biases, mental health research, or human behavior.",
       parameters: {
         type: "object",
-        properties: {}
-      }
-    }
+        properties: {},
+      },
+    },
   },
   {
     type: "function",
     function: {
       name: "getScreeningInfo",
-      description: "Retrieves information about mental health screening questionnaires (anxiety, depression) to help users understand assessment tools.",
+      description:
+        "Retrieves information about mental health screening questionnaires (anxiety, depression) to help users understand assessment tools.",
       parameters: {
         type: "object",
         properties: {
           type: {
             type: "string",
             description: "The screening type: 'anxiety' or 'depression'",
-            enum: ["anxiety", "depression"]
-          }
+            enum: ["anxiety", "depression"],
+          },
         },
-        required: ["type"]
-      }
-    }
-  }
+        required: ["type"],
+      },
+    },
+  },
 ];
 
 // Tool implementations
@@ -70,7 +74,7 @@ const toolImplementations = {
   getScreeningInfo: async ({ type }) => {
     const questionnaire = assessmentService.getScreening(type);
     return questionnaire || { error: "Screening type not found" };
-  }
+  },
 };
 
 // System prompt tailored for psychology and mental health support
@@ -104,7 +108,8 @@ async function chat(messages) {
       choices: [
         {
           message: {
-            content: "AI assistant is not configured. Please set GROQ_API_KEY environment variable to enable conversational features.",
+            content:
+              "AI assistant is not configured. Please set GROQ_API_KEY environment variable to enable conversational features.",
           },
         },
       ],
