@@ -1,50 +1,53 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const personalityAssessmentSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: "User",
     required: true,
-    index: true
+    index: true,
   },
   results: {
     Openness: {
       score: Number,
       percentile: Number,
-      interpretation: String
+      interpretation: String,
     },
     Conscientiousness: {
       score: Number,
       percentile: Number,
-      interpretation: String
+      interpretation: String,
     },
     Extraversion: {
       score: Number,
       percentile: Number,
-      interpretation: String
+      interpretation: String,
     },
     Agreeableness: {
       score: Number,
       percentile: Number,
-      interpretation: String
+      interpretation: String,
     },
     Neuroticism: {
       score: Number,
       percentile: Number,
-      interpretation: String
-    }
+      interpretation: String,
+    },
   },
   answers: {
     type: Map,
-    of: Number
+    of: Number,
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 // Index for retrieving user's assessment history
 personalityAssessmentSchema.index({ userId: 1, createdAt: -1 });
 
-module.exports = mongoose.model('PersonalityAssessment', personalityAssessmentSchema);
+module.exports = mongoose.model(
+  "PersonalityAssessment",
+  personalityAssessmentSchema
+);
