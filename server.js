@@ -81,6 +81,8 @@ app.get("*", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`MindBot server running on http://localhost:${PORT}`)
+// Bind to IPv4 localhost explicitly to ensure tooling (PowerShell, curl) can connect
+const HOST = process.env.HOST || '127.0.0.1';
+app.listen(PORT, HOST, () =>
+  console.log(`MindBot server running on http://${HOST}:${PORT}`)
 );
