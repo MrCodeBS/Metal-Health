@@ -1,41 +1,31 @@
-const fs = require("fs");
-const path = require("path");
-const { v4: uuidv4 } = require("uuid");
+const MoodEntry = require("../models/MoodEntry");
 
-const DATA_FILE = path.join(__dirname, "..", "data", "mood.json");
-
-function load() {
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf8");
-    return JSON.parse(raw);
-  } catch (e) {
-    return [];
-  }
+async function getMoodHistory(userId, days = 30) {
+  const cutoff = new Date(Date.now() - days * 24 * 3600 * 1000);
+  const entries = await MoodEntry.find({
+    userId,
+    date: { $gte: cutoff },
+  })
+    .sort({ date: -1 })
+    .lean();
+  return entries;
 }
 
-function save(entries) {
-  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(entries, null, 2));
-}
-
-function getMoodHistory(days) {
-  const entries = load();
-  const cutoff = Date.now() - days * 24 * 3600 * 1000;
-  return entries.filter((e) => new Date(e.date).getTime() >= cutoff);
-}
-
-function addMoodEntry({ date, mood, stressLevel, notes }) {
-  const entries = load();
-  const entry = {
-    id: uuidv4(),
-    date: date || new Date().toISOString(),
+async function addMoodEntry(userId, { date, mood, stressLevel, notes }) {
+  const entry = new MoodEntry({
+    userId,
+    date: date || new Date(),
     mood,
     stressLevel: stressLevel || null,
     notes: notes || "",
-  };
-  entries.push(entry);
-  save(entries);
+  });
+  await entry.save();
   return entry;
 }
 
-module.exports = { getMoodHistory, addMoodEntry };
+async function deleteMoodEntry(userId, entryId) {
+  const result = await MoodEntry.findOneAndDelete({ _id: entryId, userId });
+  return result;
+}
+
+module.exports = { getMoodHistory, addMoodEntry, deleteMoodEntry };

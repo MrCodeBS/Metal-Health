@@ -1,6 +1,133 @@
+// Auth state
+let authToken = localStorage.getItem('authToken');
+let currentUser = null;
+
+// Set auth header for all requests
+function getAuthHeaders() {
+  return authToken ? { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${authToken}`
+  } : { 'Content-Type': 'application/json' };
+}
+
 async function getJSON(path) {
-  const res = await fetch(path);
+  const res = await fetch(path, { headers: getAuthHeaders() });
+  if (res.status === 401) {
+    logout();
+    throw new Error('Authentication required');
+  }
   return res.json();
+}
+
+async function postJSON(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body)
+  });
+  if (res.status === 401) {
+    logout();
+    throw new Error('Authentication required');
+  }
+  return res.json();
+}
+
+// Auth UI
+const authModal = document.getElementById('auth-modal');
+const modalClose = document.querySelector('.close');
+const authForm = document.getElementById('auth-form');
+const authError = document.getElementById('auth-error');
+const showLoginBtn = document.getElementById('show-login');
+const showRegisterBtn = document.getElementById('show-register');
+const logoutBtn = document.getElementById('logout-btn');
+const authButtons = document.getElementById('auth-buttons');
+const userInfo = document.getElementById('user-info');
+const usernameDisplay = document.getElementById('username-display');
+const appContent = document.getElementById('app-content');
+
+let isRegisterMode = false;
+
+showLoginBtn.addEventListener('click', () => {
+  isRegisterMode = false;
+  document.getElementById('modal-title').textContent = 'Login';
+  document.getElementById('username-field').style.display = 'none';
+  document.getElementById('auth-submit').textContent = 'Login';
+  authModal.style.display = 'block';
+});
+
+showRegisterBtn.addEventListener('click', () => {
+  isRegisterMode = true;
+  document.getElementById('modal-title').textContent = 'Register';
+  document.getElementById('username-field').style.display = 'block';
+  document.getElementById('auth-submit').textContent = 'Register';
+  authModal.style.display = 'block';
+});
+
+modalClose.addEventListener('click', () => {
+  authModal.style.display = 'none';
+  authError.textContent = '';
+});
+
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  authError.textContent = '';
+  
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const username = document.getElementById('auth-username').value;
+  
+  try {
+    const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+    const body = isRegisterMode ? { username, email, password } : { email, password };
+    
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      authError.textContent = data.error || 'Authentication failed';
+      return;
+    }
+    
+    authToken = data.token;
+    localStorage.setItem('authToken', authToken);
+    currentUser = { userId: data.userId, username: data.username };
+    
+    authModal.style.display = 'none';
+    authForm.reset();
+    updateAuthUI();
+    initializeApp();
+  } catch (error) {
+    authError.textContent = 'Network error. Please try again.';
+    console.error(error);
+  }
+});
+
+logoutBtn.addEventListener('click', logout);
+
+function logout() {
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('authToken');
+  updateAuthUI();
+  appContent.style.display = 'none';
+}
+
+function updateAuthUI() {
+  if (authToken) {
+    authButtons.style.display = 'none';
+    userInfo.style.display = 'block';
+    usernameDisplay.textContent = currentUser?.username || 'User';
+    appContent.style.display = 'block';
+  } else {
+    authButtons.style.display = 'block';
+    userInfo.style.display = 'none';
+    appContent.style.display = 'none';
+  }
 }
 
 // Personality radar
@@ -45,12 +172,16 @@ let moodChart = new Chart(moodCtx, {
 });
 
 async function loadMood() {
-  const data = await getJSON("/api/mood-history?days=30");
-  const labels = data.map((e) => new Date(e.date).toLocaleDateString());
-  const values = data.map((e) => e.mood);
-  moodChart.data.labels = labels;
-  moodChart.data.datasets[0].data = values;
-  moodChart.update();
+  try {
+    const data = await getJSON("/api/mood-history?days=30");
+    const labels = data.map((e) => new Date(e.date).toLocaleDateString());
+    const values = data.map((e) => e.mood);
+    moodChart.data.labels = labels;
+    moodChart.data.datasets[0].data = values;
+    moodChart.update();
+  } catch (error) {
+    console.error('Failed to load mood:', error);
+  }
 }
 
 async function loadFact() {
@@ -76,43 +207,42 @@ document.getElementById("mood-checkin").addEventListener("click", async () => {
     prompt("On a scale 1 (low) to 10 (high), how is your mood today?")
   );
   if (!mood) return;
-  await fetch("/api/mood-checkin", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mood }),
-  });
-  await loadMood();
-  alert("Mood saved locally.");
+  try {
+    await postJSON('/api/mood-checkin', { mood });
+    await loadMood();
+    alert("Mood saved successfully.");
+  } catch (error) {
+    alert('Failed to save mood: ' + error.message);
+  }
 });
 
 // Start personality assessment
 document
   .getElementById("start-assessment")
   .addEventListener("click", async () => {
-    const qdata = await getJSON("/api/personality-test");
-    const answers = {};
-    for (const q of qdata.questions) {
-      const a = parseInt(prompt(q.text + " (1-5)"));
-      if (a && a >= 1 && a <= 5) answers[q.id] = a;
+    try {
+      const qdata = await getJSON("/api/personality-test");
+      const answers = {};
+      for (const q of qdata.questions) {
+        const a = parseInt(prompt(q.text + " (1-5)"));
+        if (a && a >= 1 && a <= 5) answers[q.id] = a;
+      }
+      const body = await postJSON('/api/personality-test/results', { answers });
+      const labels = [
+        "Openness",
+        "Conscientiousness",
+        "Extraversion",
+        "Agreeableness",
+        "Neuroticism",
+      ];
+      const data = labels.map((l) => body.results[l].score);
+      radarChart.data.datasets[0].data = data;
+      radarChart.update();
+      console.log(body);
+      alert("Personality results loaded. See console for details.");
+    } catch (error) {
+      alert('Assessment failed: ' + error.message);
     }
-    const res = await fetch("/api/personality-test/results", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers }),
-    });
-    const body = await res.json();
-    const labels = [
-      "Openness",
-      "Conscientiousness",
-      "Extraversion",
-      "Agreeableness",
-      "Neuroticism",
-    ];
-    const data = labels.map((l) => body.results[l].score);
-    radarChart.data.datasets[0].data = data;
-    radarChart.update();
-    console.log(body);
-    alert("Personality results loaded. See console for details.");
   });
 
 // Chat functionality
@@ -140,24 +270,12 @@ async function sendMessage() {
   chatMessages.push({ role: "user", content: text });
 
   try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: chatMessages }),
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      addMessage("system", error.error || "Error communicating with MindBot");
-      return;
-    }
-
-    const data = await res.json();
+    const data = await postJSON('/api/chat', { messages: chatMessages });
     const reply = data.choices[0].message.content;
     addMessage("assistant", reply);
     chatMessages.push({ role: "assistant", content: reply });
   } catch (err) {
-    addMessage("system", "Network error. Please check your connection.");
+    addMessage("system", "Error: " + err.message);
     console.error(err);
   } finally {
     sendBtn.disabled = false;
@@ -170,7 +288,25 @@ chatInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") sendMessage();
 });
 
-// Initial load
-loadMood();
-loadFact();
-loadTechnique();
+// Initialize app
+async function initializeApp() {
+  loadMood();
+  loadFact();
+  loadTechnique();
+}
+
+// Check if user is already logged in
+if (authToken) {
+  fetch('/api/auth/me', { headers: getAuthHeaders() })
+    .then(res => res.json())
+    .then(user => {
+      currentUser = user;
+      updateAuthUI();
+      initializeApp();
+    })
+    .catch(() => {
+      logout();
+    });
+} else {
+  updateAuthUI();
+}

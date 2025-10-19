@@ -1,3 +1,4 @@
+const PersonalityAssessment = require("../models/PersonalityAssessment");
 const personalityQuestions = require("../data/personalityQuestions.json");
 const screenings = require("../data/screenings.json");
 
@@ -10,7 +11,7 @@ function getPersonalityQuestions() {
   }));
 }
 
-function evaluatePersonality(answers) {
+async function evaluatePersonality(userId, answers) {
   // answers: { questionId: numberAnswer }
   const traitScores = {
     Openness: 0,
@@ -43,7 +44,23 @@ function evaluatePersonality(answers) {
     results[t] = { score: Number(avg.toFixed(2)), percentile, interpretation };
   }
 
-  return { results, timestamp: Date.now() };
+  // Save to database
+  const assessment = new PersonalityAssessment({
+    userId,
+    results,
+    answers,
+  });
+  await assessment.save();
+
+  return { results, timestamp: assessment.createdAt.getTime() };
+}
+
+async function getAssessmentHistory(userId, limit = 10) {
+  const assessments = await PersonalityAssessment.find({ userId })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  return assessments;
 }
 
 function interpretTrait(trait, percentile) {
@@ -57,4 +74,9 @@ function getScreening(type) {
   return screenings[type] || null;
 }
 
-module.exports = { getPersonalityQuestions, evaluatePersonality, getScreening };
+module.exports = {
+  getPersonalityQuestions,
+  evaluatePersonality,
+  getAssessmentHistory,
+  getScreening,
+};
