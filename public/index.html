@@ -85,6 +85,23 @@
           </div>
         </div>
 
+        <!-- Health Metrics Card (NEW) -->
+        <div class="card" id="health-metrics-card">
+          <h2>💚 Health Metrics</h2>
+          <p style="font-size: 0.9em; opacity: 0.8; margin-bottom: 15px">
+            Your physical health summary (last 30 days)
+          </p>
+          <div id="health-metrics-display">
+            <p style="color: #00d4ff">⏳ Loading health data...</p>
+          </div>
+          <button
+            id="refresh-health-btn"
+            style="margin-top: 10px; background: #6366f1"
+          >
+            🔄 Refresh Data
+          </button>
+        </div>
+
         <!-- DBT Skills Card -->
         <div class="card">
           <h2>🧘 DBT Skills</h2>
@@ -104,20 +121,38 @@
           <p style="font-size: 0.9em; opacity: 0.8; margin-bottom: 15px">
             Import your health data to correlate with mood
           </p>
-          
-          <div style="background: rgba(0, 212, 255, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9em">
-            <strong>How to export:</strong><br>
-            1. Open Health app on iPhone<br>
-            2. Tap your profile picture (top right)<br>
-            3. Scroll down → "Export All Health Data"<br>
-            4. Share/Save the ZIP file<br>
+
+          <div
+            style="
+              background: rgba(0, 212, 255, 0.1);
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 15px;
+              font-size: 0.9em;
+            "
+          >
+            <strong>How to export:</strong><br />
+            1. Open Health app on iPhone<br />
+            2. Tap your profile picture (top right)<br />
+            3. Scroll down → "Export All Health Data"<br />
+            4. Share/Save the ZIP file<br />
             5. Upload it here
           </div>
-          
-          <input type="file" id="health-file-input" accept=".zip" style="margin-bottom: 10px; display: block" />
+
+          <input
+            type="file"
+            id="health-file-input"
+            accept=".zip"
+            style="margin-bottom: 10px; display: block"
+          />
           <button id="upload-health-btn">📤 Upload Apple Health Data</button>
-          <button id="view-health-summary-btn" style="margin-top: 8px; background: #6366f1">📊 View Health Summary</button>
-          
+          <button
+            id="view-health-summary-btn"
+            style="margin-top: 8px; background: #6366f1"
+          >
+            📊 View Health Summary
+          </button>
+
           <div id="health-status" style="margin-top: 15px"></div>
           <div id="health-summary" style="margin-top: 15px"></div>
         </div>

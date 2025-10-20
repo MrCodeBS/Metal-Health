@@ -329,8 +329,7 @@ function generateHealthInsights(data) {
   const avgSleep =
     data.filter((d) => d.sleep).reduce((sum, d) => sum + d.sleep, 0) /
     data.filter((d) => d.sleep).length;
-  const avgMood =
-    data.reduce((sum, d) => sum + d.mood, 0) / data.length;
+  const avgMood = data.reduce((sum, d) => sum + d.mood, 0) / data.length;
   const avgHRV =
     data.filter((d) => d.hrv).reduce((sum, d) => sum + d.hrv, 0) /
     data.filter((d) => d.hrv).length;
@@ -418,7 +417,7 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     let recentMoods = [];
     let personalityResults = null;
-    
+
     try {
       [recentMoods, personalityResults] = await Promise.all([
         moodService.getMoodHistory(userId, 7).catch(() => []),

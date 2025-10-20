@@ -332,6 +332,397 @@ document.addEventListener("DOMContentLoaded", function () {
     loadDBTSkill("mindfulness", "5-4-3-2-1");
   });
 
+  // Apple Health functionality
+  document
+    .getElementById("upload-health-btn")
+    .addEventListener("click", async () => {
+      const fileInput = document.getElementById("health-file-input");
+      const statusDiv = document.getElementById("health-status");
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        statusDiv.innerHTML =
+          '<p style="color: #ff6b6b">⚠️ Please select a file first</p>';
+        return;
+      }
+
+      const file = fileInput.files[0];
+      if (!file.name.endsWith(".zip")) {
+        statusDiv.innerHTML =
+          '<p style="color: #ff6b6b">⚠️ Please upload a ZIP file from Apple Health</p>';
+        return;
+      }
+
+      statusDiv.innerHTML =
+        '<p style="color: #00d4ff">⏳ Uploading and processing... This may take a minute...</p>';
+
+      try {
+        const formData = new FormData();
+        formData.append("healthExport", file);
+
+        const res = await fetch("/api/health/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          statusDiv.innerHTML = `
+          <p style="color: #51cf66">✅ Success! Imported ${
+            data.recordsSaved
+          } days of health data</p>
+          <p style="font-size: 0.9em; opacity: 0.8">Date range: ${
+            data.dateRange?.from || "N/A"
+          } to ${data.dateRange?.to || "N/A"}</p>
+        `;
+          fileInput.value = ""; // Clear the file input
+        } else {
+          statusDiv.innerHTML = `<p style="color: #ff6b6b">❌ Error: ${data.error}</p>`;
+        }
+      } catch (error) {
+        statusDiv.innerHTML = `<p style="color: #ff6b6b">❌ Upload failed: ${error.message}</p>`;
+      }
+    });
+
+  document
+    .getElementById("view-health-summary-btn")
+    .addEventListener("click", async () => {
+      const summaryDiv = document.getElementById("health-summary");
+      summaryDiv.innerHTML =
+        '<p style="color: #00d4ff">⏳ Loading health summary...</p>';
+
+      try {
+        const res = await fetch("/api/health/summary?days=30", {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          const avg = data.averages;
+          summaryDiv.innerHTML = `
+          <div style="background: rgba(0, 212, 255, 0.1); padding: 15px; border-radius: 8px">
+            <h3 style="margin-top: 0">📊 Last 30 Days Health Summary</h3>
+            <p><strong>Data Points:</strong> ${data.dataPoints} days tracked</p>
+            
+            ${
+              avg.sleep
+                ? `<p><strong>😴 Avg Sleep:</strong> ${avg.sleep.hours.toFixed(
+                    1
+                  )} hours/night (${avg.sleep.nights} nights)</p>`
+                : ""
+            }
+            
+            ${
+              avg.hrv
+                ? `<p><strong>❤️ Avg HRV:</strong> ${avg.hrv.value.toFixed(
+                    0
+                  )} ms ${
+                    avg.hrv.value > 50
+                      ? "(Low stress ✅)"
+                      : avg.hrv.value > 30
+                      ? "(Moderate)"
+                      : "(High stress ⚠️)"
+                  } (${avg.hrv.days} days)</p>`
+                : ""
+            }
+            
+            ${
+              avg.steps
+                ? `<p><strong>🚶 Avg Steps:</strong> ${avg.steps.daily.toFixed(
+                    0
+                  )} steps/day (${avg.steps.days} days)</p>`
+                : ""
+            }
+            
+            ${
+              avg.exercise
+                ? `<p><strong>🏃 Avg Exercise:</strong> ${avg.exercise.minutes.toFixed(
+                    0
+                  )} min/day (${avg.exercise.days} days)</p>`
+                : ""
+            }
+            
+            ${
+              avg.restingHeartRate
+                ? `<p><strong>💓 Resting HR:</strong> ${avg.restingHeartRate.bpm.toFixed(
+                    0
+                  )} bpm (${avg.restingHeartRate.days} days)</p>`
+                : ""
+            }
+            
+            ${
+              avg.mindfulness
+                ? `<p><strong>🧘 Mindfulness:</strong> ${avg.mindfulness.minutes.toFixed(
+                    0
+                  )} min/day (${avg.mindfulness.days} days)</p>`
+                : ""
+            }
+            
+            ${
+              !avg.sleep && !avg.hrv && !avg.steps && !avg.exercise
+                ? '<p style="color: #ffd43b">No health metrics found for this period.</p>'
+                : ""
+            }
+          </div>
+        `;
+        } else {
+          summaryDiv.innerHTML = `<p style="color: #ffd43b">📭 ${
+            data.message || "No health data available yet"
+          }</p>`;
+        }
+      } catch (error) {
+        summaryDiv.innerHTML = `<p style="color: #ff6b6b">❌ Failed to load: ${error.message}</p>`;
+      }
+    });
+
+  // Load health metrics function (for dashboard card)
+  async function loadHealthMetrics() {
+    const metricsDisplay = document.getElementById("health-metrics-display");
+
+    if (!authToken) {
+      metricsDisplay.innerHTML =
+        '<p style="color: #ffd43b">🔒 Login to see your health metrics</p>';
+      return;
+    }
+
+    metricsDisplay.innerHTML = '<p style="color: #00d4ff">⏳ Loading...</p>';
+
+    try {
+      const res = await fetch("/api/health/summary?days=30", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.dataPoints > 0) {
+        const avg = data.averages;
+
+        // Build metrics HTML with all available data
+        let metricsHTML = `
+          <div style="background: rgba(0, 212, 255, 0.1); padding: 15px; border-radius: 8px">
+            <p style="margin: 0 0 12px 0; opacity: 0.8"><strong>📊 ${data.period}</strong> (${data.dataPoints} days)</p>
+        `;
+
+        if (avg.sleep) {
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>😴 Sleep:</strong> ${avg.sleep.hours.toFixed(
+                1
+              )} hrs/night<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.sleep.nights
+              } nights</span>
+            </div>
+          `;
+        }
+
+        if (avg.hrv) {
+          const hrvLevel =
+            avg.hrv.value > 50
+              ? "✅ Low stress"
+              : avg.hrv.value > 30
+              ? "⚠️ Moderate"
+              : "🔴 High stress";
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>❤️ HRV:</strong> ${avg.hrv.value.toFixed(
+                0
+              )} ms (${hrvLevel})<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.hrv.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        if (avg.steps) {
+          const stepsGoal =
+            avg.steps.daily >= 10000
+              ? "🎯 Great!"
+              : avg.steps.daily >= 7000
+              ? "👍 Good"
+              : "📈 Keep moving";
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🚶 Steps:</strong> ${Math.round(
+                avg.steps.daily
+              ).toLocaleString()}/day ${stepsGoal}<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.steps.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        if (avg.exercise) {
+          const exerciseGoal =
+            avg.exercise.minutes >= 30
+              ? "💪 Excellent!"
+              : avg.exercise.minutes >= 20
+              ? "👍 Good"
+              : "🎯 Almost there";
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🏃 Exercise:</strong> ${Math.round(
+                avg.exercise.minutes
+              )} min/day ${exerciseGoal}<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.exercise.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        if (avg.restingHeartRate) {
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>💓 Resting HR:</strong> ${Math.round(
+                avg.restingHeartRate.bpm
+              )} bpm<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.restingHeartRate.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        if (avg.mindfulness) {
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🧘 Mindfulness:</strong> ${Math.round(
+                avg.mindfulness.minutes
+              )} min/day<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.mindfulness.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        // Calories Burned
+        if (avg.totalCalories) {
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🔥 Total Calories:</strong> ${Math.round(
+                avg.totalCalories.daily
+              ).toLocaleString()} kcal/day<br>
+              ${
+                avg.activeCalories
+                  ? `<span style="font-size: 0.8em; opacity: 0.6">Active: ${Math.round(
+                      avg.activeCalories.daily
+                    )} kcal/day</span><br>`
+                  : ""
+              }
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.totalCalories.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        // Distance
+        if (avg.distance) {
+          const km = avg.distance.daily / 1000; // Convert meters to km
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🚶‍♂️ Distance:</strong> ${km.toFixed(1)} km/day<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.distance.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        // Flights Climbed
+        if (avg.flightsClimbed) {
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🪜 Stairs:</strong> ${Math.round(
+                avg.flightsClimbed.daily
+              )} flights/day<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.flightsClimbed.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        // VO2 Max (Cardiovascular Fitness)
+        if (avg.vo2Max) {
+          const fitnessLevel =
+            avg.vo2Max.value >= 40
+              ? "💪 Excellent"
+              : avg.vo2Max.value >= 30
+              ? "👍 Good"
+              : "📈 Fair";
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🫁 VO2 Max:</strong> ${avg.vo2Max.value.toFixed(
+                1
+              )} ml/kg/min (${fitnessLevel})<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Cardio fitness - Tracked ${
+                avg.vo2Max.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        // Blood Oxygen
+        if (avg.bloodOxygen) {
+          const oxygenLevel =
+            avg.bloodOxygen.percentage >= 95 ? "✅ Normal" : "⚠️ Monitor";
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>💨 Blood O2:</strong> ${avg.bloodOxygen.percentage.toFixed(
+                1
+              )}% (${oxygenLevel})<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.bloodOxygen.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        // Respiratory Rate
+        if (avg.respiratoryRate) {
+          metricsHTML += `
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 5px">
+              <strong>🌬️ Breathing:</strong> ${Math.round(
+                avg.respiratoryRate.bpm
+              )} breaths/min<br>
+              <span style="font-size: 0.85em; opacity: 0.7">Tracked ${
+                avg.respiratoryRate.days
+              } days</span>
+            </div>
+          `;
+        }
+
+        metricsHTML += "</div>";
+        metricsDisplay.innerHTML = metricsHTML;
+      } else {
+        metricsDisplay.innerHTML = `
+          <div style="background: rgba(255, 212, 59, 0.1); padding: 15px; border-radius: 8px; text-align: center">
+            <p style="margin: 0; color: #ffd43b">📭 No health data yet</p>
+            <p style="font-size: 0.85em; margin: 8px 0 0 0; opacity: 0.7">
+              Upload your Apple Health export in the "Apple Health Integration" card below
+            </p>
+          </div>
+        `;
+      }
+    } catch (error) {
+      metricsDisplay.innerHTML = `<p style="color: #ff6b6b">❌ Failed to load: ${error.message}</p>`;
+    }
+  }
+
+  // Refresh health button
+  document
+    .getElementById("refresh-health-btn")
+    .addEventListener("click", () => {
+      loadHealthMetrics();
+    });
+
   // Mood modal functionality
   const moodModal = document.getElementById("mood-modal");
   const moodCloseBtn = document.getElementById("mood-close");
@@ -484,6 +875,7 @@ document.addEventListener("DOMContentLoaded", function () {
     loadMood();
     loadFact();
     loadTechnique();
+    loadHealthMetrics(); // Load health data automatically
   }
 
   // Check if user is already logged in

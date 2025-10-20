@@ -17,7 +17,9 @@ async function connectDB() {
     console.warn("   3. Click 'ADD IP ADDRESS'");
     console.warn("   4. Click 'ALLOW ACCESS FROM ANYWHERE'");
     console.warn("   5. Click 'Confirm' and wait 1-2 minutes\n");
-    console.warn("🔄 App will continue in LIMITED MODE (no user accounts/history)\n");
+    console.warn(
+      "🔄 App will continue in LIMITED MODE (no user accounts/history)\n"
+    );
     // Don't exit - let app run for chat functionality
   }
 }

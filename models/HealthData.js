@@ -22,17 +22,24 @@ const healthDataSchema = new mongoose.Schema(
     // Activity
     steps: { type: Number },
     exerciseMinutes: { type: Number },
-    activeEnergyBurned: { type: Number }, // kcal
+    activeEnergyBurned: { type: Number }, // kcal from activity
+    basalEnergyBurned: { type: Number }, // kcal from resting metabolism
+    totalCaloriesBurned: { type: Number }, // active + basal
+    distanceWalkingRunning: { type: Number }, // km
+    flightsClimbed: { type: Number }, // stairs
+
+    // Fitness metrics
+    vo2Max: { type: Number }, // ml/kg/min - cardiovascular fitness
+
+    // Respiratory/Oxygen
+    bloodOxygenSaturation: { type: Number }, // SpO2 percentage
+    respiratoryRate: { type: Number }, // breaths per minute
 
     // Mindfulness
     mindfulMinutes: { type: Number },
 
     // Computed insights
-    stressLevel: {
-      type: String,
-      enum: ["low", "moderate", "high"],
-      default: "moderate",
-    },
+    stressLevel: { type: Number }, // 1-10 scale calculated from HRV
   },
   { timestamps: true }
 );
