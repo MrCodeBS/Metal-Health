@@ -289,6 +289,29 @@ document.addEventListener("DOMContentLoaded", function () {
     ).innerHTML = `<h4>${t.title}</h4><p>${t.description}</p>`;
   }
 
+  async function loadDBTSkill(category, skillName) {
+    try {
+      const data = await getJSON(
+        `/api/dbt/instructions/${category}/${encodeURIComponent(skillName)}`
+      );
+      const skillDiv = document.getElementById("dbt-skill");
+
+      // Format the instructions with better HTML
+      const formattedInstructions = data.instructions
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n\n/g, "<br><br>")
+        .replace(/\n/g, "<br>")
+        .replace(/• /g, "&nbsp;&nbsp;• ");
+
+      skillDiv.innerHTML = `<div style="line-height: 1.6; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 4px solid var(--cyan);">${formattedInstructions}</div>`;
+    } catch (error) {
+      console.error("Failed to load DBT skill:", error);
+      document.getElementById(
+        "dbt-skill"
+      ).innerHTML = `<p style="color: var(--pink);">Failed to load skill. Please try again.</p>`;
+    }
+  }
+
   document.getElementById("random-fact").addEventListener("click", () => {
     console.log("Random fact button clicked");
     loadFact();
@@ -296,6 +319,17 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("get-breathing").addEventListener("click", () => {
     console.log("Get breathing button clicked");
     loadTechnique();
+  });
+
+  // DBT Skills buttons
+  document.getElementById("get-dbt-crisis").addEventListener("click", () => {
+    console.log("DBT Crisis (TIPP) button clicked");
+    loadDBTSkill("stressTolerance", "TIPP");
+  });
+
+  document.getElementById("get-dbt-grounding").addEventListener("click", () => {
+    console.log("DBT Grounding button clicked");
+    loadDBTSkill("mindfulness", "5-4-3-2-1");
   });
 
   // Mood modal functionality
