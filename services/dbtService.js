@@ -1,4 +1,15 @@
-const dbtKnowledge = require("../data/dbt-knowledge");
+const dbtKnowledge = require("../data/dbt-knowledge.json");
+
+// Validate that the knowledge base loaded correctly
+if (!dbtKnowledge || !dbtKnowledge.modules) {
+  console.error("ERROR: DBT Knowledge base failed to load properly!");
+  throw new Error("DBT Knowledge base is not properly configured");
+}
+
+console.log(
+  "DBT Knowledge base loaded successfully with modules:",
+  Object.keys(dbtKnowledge.modules)
+);
 
 class DBTService {
   // Get skill by category and name

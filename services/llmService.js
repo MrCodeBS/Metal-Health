@@ -195,6 +195,7 @@ When discussing mental health:
 
 async function chat(messages) {
   if (!groq) {
+    console.error("Groq client not initialized - GROQ_API_KEY missing");
     return {
       choices: [
         {
@@ -214,51 +215,67 @@ async function chat(messages) {
 
   console.log("Sending messages to Groq:", JSON.stringify(messages, null, 2));
 
-  const response = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    messages: messages,
-    tools: toolDefinitions,
-    tool_choice: "auto",
-    temperature: 0.7, // Slightly creative but still grounded
-  });
-
-  const responseMessage = response.choices[0].message;
-  messages.push(responseMessage); // Add AI's response to history
-
-  // Check if the model wants to call a tool
-  if (responseMessage.tool_calls) {
-    console.log("Tool call requested:", responseMessage.tool_calls);
-    for (const toolCall of responseMessage.tool_calls) {
-      const functionName = toolCall.function.name;
-      const functionToCall = toolImplementations[functionName];
-      const functionArgs = JSON.parse(toolCall.function.arguments);
-
-      const functionResponse = await functionToCall(functionArgs);
-
-      // Add the tool response to the conversation history
-      messages.push({
-        tool_call_id: toolCall.id,
-        role: "tool",
-        name: functionName,
-        content: JSON.stringify(functionResponse),
-      });
-    }
-
-    // Call the model again with the tool response
-    console.log(
-      "Sending messages to Groq with tool response:",
-      JSON.stringify(messages, null, 2)
-    );
-    const secondResponse = await groq.chat.completions.create({
+  try {
+    const response = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       messages: messages,
-      temperature: 0.7,
+      tools: toolDefinitions,
+      tool_choice: "auto",
+      temperature: 0.7, // Slightly creative but still grounded
     });
 
-    return secondResponse;
-  }
+    console.log("Groq response received:", JSON.stringify(response, null, 2));
 
-  return response;
+    const responseMessage = response.choices[0].message;
+    messages.push(responseMessage); // Add AI's response to history
+
+    // Check if the model wants to call a tool
+    if (responseMessage.tool_calls) {
+      console.log("Tool call requested:", responseMessage.tool_calls);
+      for (const toolCall of responseMessage.tool_calls) {
+        const functionName = toolCall.function.name;
+        const functionToCall = toolImplementations[functionName];
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+
+        const functionResponse = await functionToCall(functionArgs);
+
+        // Add the tool response to the conversation history
+        messages.push({
+          tool_call_id: toolCall.id,
+          role: "tool",
+          name: functionName,
+          content: JSON.stringify(functionResponse),
+        });
+      }
+
+      // Call the model again with the tool response
+      console.log(
+        "Sending messages to Groq with tool response:",
+        JSON.stringify(messages, null, 2)
+      );
+      const secondResponse = await groq.chat.completions.create({
+        model: "llama-3.1-8b-instant",
+        messages: messages,
+        temperature: 0.7,
+      });
+
+      return secondResponse;
+    }
+
+    return response;
+  } catch (error) {
+    console.error("Error in chat function:", error);
+    return {
+      choices: [
+        {
+          message: {
+            content:
+              "I apologize, but I encountered an error processing your message. Please try again in a moment.",
+          },
+        },
+      ],
+    };
+  }
 }
 
 module.exports = { chat };

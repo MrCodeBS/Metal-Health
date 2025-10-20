@@ -16,6 +16,12 @@ const moodService = require("./services/moodService");
 const techniqueService = require("./services/techniqueService");
 const llmService = require("./services/llmService");
 const clinicalNoteService = require("./services/clinicalNoteService");
+const appleHealthService = require("./services/appleHealthService");
+const multer = require("multer");
+const fs = require("fs");
+
+// Multer configuration for file uploads
+const upload = multer({ dest: "uploads/" });
 
 // Connect to MongoDB
 connectDB();
@@ -189,6 +195,199 @@ app.post("/api/dbt/recommend", (req, res) => {
   res.json({ recommendations });
 });
 
+// Apple Health Endpoints
+app.post(
+  "/api/health/upload",
+  authenticateToken,
+  upload.single("healthExport"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const userId = req.user.userId;
+      const zipFilePath = req.file.path;
+
+      console.log(`Processing Apple Health export for user ${userId}...`);
+
+      // Parse the health export
+      const healthMetrics = await appleHealthService.parseHealthExport(
+        zipFilePath
+      );
+
+      // Save to database
+      const result = await appleHealthService.saveHealthData(
+        userId,
+        healthMetrics
+      );
+
+      // Clean up uploaded file
+      fs.unlinkSync(zipFilePath);
+
+      res.json({
+        success: true,
+        message: "Apple Health data imported successfully",
+        recordsSaved: result.recordsSaved,
+        dateRange: result.dateRange,
+      });
+    } catch (error) {
+      console.error("Health upload error:", error);
+
+      // Clean up file if it exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      res.status(500).json({
+        error: "Failed to import Apple Health data",
+        details: error.message,
+      });
+    }
+  }
+);
+
+app.get("/api/health/summary", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const days = parseInt(req.query.days) || 30;
+
+    const summary = await appleHealthService.getHealthSummary(userId, days);
+
+    if (!summary) {
+      return res.status(404).json({
+        error: "No health data found",
+        message: "Upload your Apple Health export to get started",
+      });
+    }
+
+    res.json(summary);
+  } catch (error) {
+    console.error("Health summary error:", error);
+    res.status(500).json({ error: "Failed to get health summary" });
+  }
+});
+
+app.get("/api/health/correlation", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const days = parseInt(req.query.days) || 30;
+
+    // Get health data and mood data
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const HealthData = require("./models/HealthData");
+    const MoodEntry = require("./models/MoodEntry");
+
+    const [healthData, moodData] = await Promise.all([
+      HealthData.find({ userId, date: { $gte: startDate } }).sort({ date: 1 }),
+      MoodEntry.find({ userId, date: { $gte: startDate } }).sort({ date: 1 }),
+    ]);
+
+    // Match health and mood data by date
+    const correlationData = [];
+    healthData.forEach((health) => {
+      const mood = moodData.find(
+        (m) =>
+          m.date.toISOString().split("T")[0] ===
+          health.date.toISOString().split("T")[0]
+      );
+
+      if (mood) {
+        correlationData.push({
+          date: health.date,
+          sleep: health.sleepHours,
+          hrv: health.heartRateVariability,
+          steps: health.steps,
+          exercise: health.exerciseMinutes,
+          mood: mood.mood,
+          stress: mood.stressLevel,
+        });
+      }
+    });
+
+    res.json({
+      dataPoints: correlationData.length,
+      data: correlationData,
+      insights: generateHealthInsights(correlationData),
+    });
+  } catch (error) {
+    console.error("Health correlation error:", error);
+    res.status(500).json({ error: "Failed to get health correlation" });
+  }
+});
+
+function generateHealthInsights(data) {
+  if (data.length < 5) {
+    return {
+      message: "Not enough data for insights. Keep tracking!",
+    };
+  }
+
+  // Calculate simple correlations
+  const avgSleep =
+    data.filter((d) => d.sleep).reduce((sum, d) => sum + d.sleep, 0) /
+    data.filter((d) => d.sleep).length;
+  const avgMood =
+    data.reduce((sum, d) => sum + d.mood, 0) / data.length;
+  const avgHRV =
+    data.filter((d) => d.hrv).reduce((sum, d) => sum + d.hrv, 0) /
+    data.filter((d) => d.hrv).length;
+
+  const insights = [];
+
+  // Sleep insights
+  if (avgSleep < 6) {
+    insights.push({
+      type: "warning",
+      metric: "sleep",
+      message: `You're averaging ${avgSleep.toFixed(
+        1
+      )} hours of sleep. Aim for 7-9 hours to improve mood and reduce stress.`,
+    });
+  } else if (avgSleep >= 7) {
+    insights.push({
+      type: "positive",
+      metric: "sleep",
+      message: `Great sleep! You're averaging ${avgSleep.toFixed(
+        1
+      )} hours per night.`,
+    });
+  }
+
+  // HRV/Stress insights
+  if (avgHRV && avgHRV < 30) {
+    insights.push({
+      type: "warning",
+      metric: "stress",
+      message:
+        "Your HRV indicates higher stress levels. Consider more rest, meditation, or gentle exercise.",
+    });
+  } else if (avgHRV && avgHRV > 50) {
+    insights.push({
+      type: "positive",
+      metric: "stress",
+      message: "Your HRV looks great! Your stress management is working well.",
+    });
+  }
+
+  // Exercise insights
+  const avgExercise =
+    data.filter((d) => d.exercise).reduce((sum, d) => sum + d.exercise, 0) /
+    data.filter((d) => d.exercise).length;
+  if (avgExercise < 20) {
+    insights.push({
+      type: "suggestion",
+      metric: "exercise",
+      message:
+        "Try adding 20-30 minutes of exercise daily. It can significantly improve mood and reduce anxiety.",
+    });
+  }
+
+  return insights;
+}
+
 app.get("/api/technique", (req, res) => {
   const category = req.query.category || "all";
   const techniques = techniqueService.getTechniques(category);
@@ -215,14 +414,22 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "messages array is required" });
     }
 
-    // Fetch user context from database
+    // Fetch user context from database (if available)
     const userId = req.user.userId;
-    const [recentMoods, personalityResults] = await Promise.all([
-      moodService.getMoodHistory(userId, 7), // Last 7 days
-      PersonalityAssessment.findOne({ userId })
-        .sort({ createdAt: -1 })
-        .limit(1),
-    ]);
+    let recentMoods = [];
+    let personalityResults = null;
+    
+    try {
+      [recentMoods, personalityResults] = await Promise.all([
+        moodService.getMoodHistory(userId, 7).catch(() => []),
+        PersonalityAssessment.findOne({ userId })
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .catch(() => null),
+      ]);
+    } catch (error) {
+      // Database unavailable, continue without history
+    }
 
     // Build context string
     let userContext = `\n\nUSER CONTEXT:\n`;
@@ -259,56 +466,125 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
 
     const response = await llmService.chat(messages);
 
-    // Save chat history
-    await ChatHistory.create({
-      userId,
-      messages: messages.concat([
-        {
-          role: "assistant",
-          content: response.content,
-        },
-      ]),
-    });
+    console.log("LLM Response received:", JSON.stringify(response, null, 2));
 
-    // Check if clinical note should be generated
-    const userContextData = await clinicalNoteService.getUserContext(userId);
-    const analysis = clinicalNoteService.analyzeConversation(
-      messages,
-      userContextData
-    );
-
-    if (analysis.needsNote) {
-      // Determine trigger type
-      let triggerType = "conversation_count";
-      if (analysis.severity === "urgent") {
-        triggerType = "crisis_keywords";
-      } else if (
-        analysis.concerningPatterns.some((p) => p.pattern.includes("mood"))
-      ) {
-        triggerType = "mood_pattern";
-      }
-
-      // Generate clinical note asynchronously (don't block response)
-      clinicalNoteService
-        .generateClinicalNote(
-          userId,
-          messages.concat([{ role: "assistant", content: response.content }]),
-          userContextData,
-          triggerType
-        )
-        .catch((err) =>
-          console.error("Failed to generate clinical note:", err)
-        );
-
-      console.log(
-        `Clinical note will be generated for user ${userId} - Severity: ${analysis.severity}`
-      );
+    // Extract the actual message content with safety checks
+    if (
+      !response ||
+      !response.choices ||
+      !Array.isArray(response.choices) ||
+      response.choices.length === 0
+    ) {
+      console.error("Invalid response structure:", response);
+      return res.json({
+        choices: [
+          {
+            message: {
+              content:
+                "I apologize, but I'm having trouble processing your message right now. Please try again.",
+              role: "assistant",
+            },
+          },
+        ],
+      });
     }
 
-    res.json(response);
+    const assistantMessage = response.choices[0].message;
+    if (!assistantMessage || typeof assistantMessage !== "object") {
+      console.error("Invalid assistant message:", assistantMessage);
+      return res.json({
+        choices: [
+          {
+            message: {
+              content: "I'm here to help. Could you tell me more?",
+              role: "assistant",
+            },
+          },
+        ],
+      });
+    }
+
+    const assistantContent =
+      assistantMessage.content || "I'm here to help. Could you tell me more?";
+
+    // Save chat history (if database available)
+    try {
+      await ChatHistory.create({
+        userId,
+        messages: messages.concat([
+          {
+            role: "assistant",
+            content: assistantContent,
+          },
+        ]),
+      });
+    } catch (error) {
+      // Database unavailable, skip saving
+    }
+
+    // Check if clinical note should be generated (if database available)
+    try {
+      const userContextData = await clinicalNoteService.getUserContext(userId);
+      const analysis = clinicalNoteService.analyzeConversation(
+        messages,
+        userContextData
+      );
+
+      if (analysis.needsNote) {
+        // Determine trigger type
+        let triggerType = "conversation_count";
+        if (analysis.severity === "urgent") {
+          triggerType = "crisis_keywords";
+        } else if (
+          analysis.concerningPatterns.some((p) => p.pattern.includes("mood"))
+        ) {
+          triggerType = "mood_pattern";
+        }
+
+        // Generate clinical note asynchronously (don't block response)
+        clinicalNoteService
+          .generateClinicalNote(
+            userId,
+            messages.concat([{ role: "assistant", content: assistantContent }]),
+            userContextData,
+            triggerType
+          )
+          .catch((err) =>
+            console.error("Failed to generate clinical note:", err)
+          );
+
+        console.log(
+          `Clinical note will be generated for user ${userId} - Severity: ${analysis.severity}`
+        );
+      }
+    } catch (error) {
+      // Database unavailable, skip clinical notes
+    }
+
+    // Return response in the expected format
+    res.json({
+      choices: [
+        {
+          message: {
+            content: assistantContent,
+            role: "assistant",
+          },
+        },
+      ],
+    });
   } catch (error) {
     console.error("Chat error:", error);
-    res.status(500).json({ error: "Failed to process chat request" });
+    res.status(500).json({
+      choices: [
+        {
+          message: {
+            content:
+              "I apologize, but I encountered an error. Please try again.",
+            role: "assistant",
+          },
+        },
+      ],
+    });
   }
 });
 

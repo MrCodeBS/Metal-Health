@@ -426,7 +426,37 @@ document.addEventListener("DOMContentLoaded", function () {
 
     try {
       const data = await postJSON("/api/chat", { messages: chatMessages });
-      const reply = data.choices[0].message.content;
+
+      // Ensure we have a valid response structure
+      if (
+        !data ||
+        !data.choices ||
+        !Array.isArray(data.choices) ||
+        data.choices.length === 0
+      ) {
+        console.error("Invalid chat response:", data);
+        addMessage(
+          "system",
+          "Error: Invalid response from server. Please try again."
+        );
+        return;
+      }
+
+      const choice = data.choices[0];
+      if (
+        !choice ||
+        !choice.message ||
+        typeof choice.message.content !== "string"
+      ) {
+        console.error("Invalid message structure:", choice);
+        addMessage(
+          "system",
+          "Error: Invalid message format. Please try again."
+        );
+        return;
+      }
+
+      const reply = choice.message.content;
       addMessage("assistant", reply);
       chatMessages.push({ role: "assistant", content: reply });
     } catch (err) {
