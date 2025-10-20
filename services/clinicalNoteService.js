@@ -1,9 +1,11 @@
 const ClinicalNote = require("../models/ClinicalNote");
 const moodService = require("./moodService");
 const PersonalityAssessment = require("../models/PersonalityAssessment");
+const dbtService = require("./dbtService");
 
-// Crisis keywords that trigger urgent notes
+// Crisis keywords that trigger urgent notes (includes both English and German from DBT manual)
 const CRISIS_KEYWORDS = [
+  // English
   "suicide",
   "suicidal",
   "kill myself",
@@ -18,6 +20,19 @@ const CRISIS_KEYWORDS = [
   "better off dead",
   "plan to die",
   "say goodbye",
+  // German
+  "suizid",
+  "selbstmord",
+  "umbringen",
+  "töten",
+  "nicht mehr leben",
+  "selbstverletzung",
+  "ritzen",
+  "schneiden",
+  "überdosis",
+  "hoffnungslos",
+  "kein ausweg",
+  "besser tot",
 ];
 
 const HIGH_CONCERN_KEYWORDS = [

@@ -159,6 +159,36 @@ app.post("/api/mood-checkin", authenticateToken, async (req, res) => {
   }
 });
 
+// DBT Skills Endpoints
+const dbtService = require("./services/dbtService");
+
+app.get("/api/dbt/skills", (req, res) => {
+  const summary = dbtService.getAllSkillsSummary();
+  res.json({ skills: summary });
+});
+
+app.get("/api/dbt/skill/:category", (req, res) => {
+  const { category } = req.params;
+  const skills = dbtService.getSkillsByCategory(category);
+  if (!skills) return res.status(404).json({ error: "Category not found" });
+  res.json(skills);
+});
+
+app.get("/api/dbt/instructions/:category/:skillName", (req, res) => {
+  const { category, skillName } = req.params;
+  const instructions = dbtService.getSkillInstructions(category, skillName);
+  if (!instructions) return res.status(404).json({ error: "Skill not found" });
+  res.json({ instructions });
+});
+
+app.post("/api/dbt/recommend", (req, res) => {
+  const { issue } = req.body;
+  if (!issue)
+    return res.status(400).json({ error: "Issue description required" });
+  const recommendations = dbtService.recommendSkill(issue);
+  res.json({ recommendations });
+});
+
 app.get("/api/technique", (req, res) => {
   const category = req.query.category || "all";
   const techniques = techniqueService.getTechniques(category);
