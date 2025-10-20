@@ -7,6 +7,7 @@ const path = require("path");
 const connectDB = require("./config/database");
 const { authenticateToken, generateToken } = require("./middleware/auth");
 const User = require("./models/User");
+const PersonalityAssessment = require("./models/PersonalityAssessment");
 
 const assessmentService = require("./services/assessmentService");
 const psychologyService = require("./services/psychologyService");
@@ -181,6 +182,49 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "messages array is required" });
     }
+
+    // Fetch user context from database
+    const userId = req.user.userId;
+    const [recentMoods, personalityResults] = await Promise.all([
+      moodService.getMoodHistory(userId, 7), // Last 7 days
+      PersonalityAssessment.findOne({ userId })
+        .sort({ createdAt: -1 })
+        .limit(1),
+    ]);
+
+    // Build context string
+    let userContext = `\n\nUSER CONTEXT:\n`;
+    userContext += `Username: ${req.user.username}\n`;
+
+    if (recentMoods && recentMoods.length > 0) {
+      const avgMood = (
+        recentMoods.reduce((sum, m) => sum + m.mood, 0) / recentMoods.length
+      ).toFixed(1);
+      const avgStress = (
+        recentMoods.reduce((sum, m) => sum + m.stressLevel, 0) /
+        recentMoods.length
+      ).toFixed(1);
+      userContext += `Recent mood trends (last 7 days): Average mood ${avgMood}/10, Average stress ${avgStress}/10\n`;
+      if (recentMoods[0].notes) {
+        userContext += `Latest mood note: "${recentMoods[0].notes}"\n`;
+      }
+    }
+
+    if (personalityResults && personalityResults.results) {
+      const traits = personalityResults.results;
+      userContext += `Personality traits (Big Five): `;
+      userContext += `Openness ${traits.Openness.score}, `;
+      userContext += `Conscientiousness ${traits.Conscientiousness.score}, `;
+      userContext += `Extraversion ${traits.Extraversion.score}, `;
+      userContext += `Agreeableness ${traits.Agreeableness.score}, `;
+      userContext += `Neuroticism ${traits.Neuroticism.score}\n`;
+    }
+
+    // Add context to system message if it's the first user message
+    if (messages.length === 1 && messages[0].role === "user") {
+      messages[0].content += userContext;
+    }
+
     const response = await llmService.chat(messages);
     res.json(response);
   } catch (error) {

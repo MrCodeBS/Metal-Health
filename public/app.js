@@ -1,132 +1,136 @@
 // Auth state
-let authToken = localStorage.getItem('authToken');
+let authToken = localStorage.getItem("authToken");
 let currentUser = null;
 
 // Set auth header for all requests
 function getAuthHeaders() {
-  return authToken ? { 
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${authToken}`
-  } : { 'Content-Type': 'application/json' };
+  return authToken
+    ? {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      }
+    : { "Content-Type": "application/json" };
 }
 
 async function getJSON(path) {
   const res = await fetch(path, { headers: getAuthHeaders() });
   if (res.status === 401) {
     logout();
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
   return res.json();
 }
 
 async function postJSON(path, body) {
   const res = await fetch(path, {
-    method: 'POST',
+    method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
   if (res.status === 401) {
     logout();
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
   return res.json();
 }
 
 // Auth UI
-const authModal = document.getElementById('auth-modal');
-const modalClose = document.querySelector('.close');
-const authForm = document.getElementById('auth-form');
-const authError = document.getElementById('auth-error');
-const showLoginBtn = document.getElementById('show-login');
-const showRegisterBtn = document.getElementById('show-register');
-const logoutBtn = document.getElementById('logout-btn');
-const authButtons = document.getElementById('auth-buttons');
-const userInfo = document.getElementById('user-info');
-const usernameDisplay = document.getElementById('username-display');
-const appContent = document.getElementById('app-content');
+const authModal = document.getElementById("auth-modal");
+const modalClose = document.querySelector(".close");
+const authForm = document.getElementById("auth-form");
+const authError = document.getElementById("auth-error");
+const showLoginBtn = document.getElementById("show-login");
+const showRegisterBtn = document.getElementById("show-register");
+const logoutBtn = document.getElementById("logout-btn");
+const authButtons = document.getElementById("auth-buttons");
+const userInfo = document.getElementById("user-info");
+const usernameDisplay = document.getElementById("username-display");
+const appContent = document.getElementById("app-content");
 
 let isRegisterMode = false;
 
-showLoginBtn.addEventListener('click', () => {
+showLoginBtn.addEventListener("click", () => {
   isRegisterMode = false;
-  document.getElementById('modal-title').textContent = 'Login';
-  document.getElementById('username-field').style.display = 'none';
-  document.getElementById('auth-submit').textContent = 'Login';
-  authModal.style.display = 'block';
+  document.getElementById("modal-title").textContent = "Login";
+  document.getElementById("username-field").style.display = "none";
+  document.getElementById("auth-submit").textContent = "Login";
+  authModal.style.display = "block";
 });
 
-showRegisterBtn.addEventListener('click', () => {
+showRegisterBtn.addEventListener("click", () => {
   isRegisterMode = true;
-  document.getElementById('modal-title').textContent = 'Register';
-  document.getElementById('username-field').style.display = 'block';
-  document.getElementById('auth-submit').textContent = 'Register';
-  authModal.style.display = 'block';
+  document.getElementById("modal-title").textContent = "Register";
+  document.getElementById("username-field").style.display = "block";
+  document.getElementById("auth-submit").textContent = "Register";
+  authModal.style.display = "block";
 });
 
-modalClose.addEventListener('click', () => {
-  authModal.style.display = 'none';
-  authError.textContent = '';
+modalClose.addEventListener("click", () => {
+  authModal.style.display = "none";
+  authError.textContent = "";
 });
 
-authForm.addEventListener('submit', async (e) => {
+authForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  authError.textContent = '';
-  
-  const email = document.getElementById('auth-email').value;
-  const password = document.getElementById('auth-password').value;
-  const username = document.getElementById('auth-username').value;
-  
+  authError.textContent = "";
+
+  const email = document.getElementById("auth-email").value;
+  const password = document.getElementById("auth-password").value;
+  const username = document.getElementById("auth-username").value;
+
   try {
-    const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
-    const body = isRegisterMode ? { username, email, password } : { email, password };
-    
+    const endpoint = isRegisterMode ? "/api/auth/register" : "/api/auth/login";
+    const body = isRegisterMode
+      ? { username, email, password }
+      : { email, password };
+
     const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-    
+
     const data = await res.json();
-    
+
     if (!res.ok) {
-      authError.textContent = data.error || 'Authentication failed';
+      authError.textContent = data.error || "Authentication failed";
       return;
     }
-    
+
     authToken = data.token;
-    localStorage.setItem('authToken', authToken);
+    localStorage.setItem("authToken", authToken);
     currentUser = { userId: data.userId, username: data.username };
-    
-    authModal.style.display = 'none';
+
+    authModal.style.display = "none";
     authForm.reset();
     updateAuthUI();
     initializeApp();
   } catch (error) {
-    authError.textContent = 'Network error. Please try again.';
+    authError.textContent = "Network error. Please try again.";
     console.error(error);
   }
 });
 
-logoutBtn.addEventListener('click', logout);
+logoutBtn.addEventListener("click", logout);
 
 function logout() {
   authToken = null;
   currentUser = null;
-  localStorage.removeItem('authToken');
+  localStorage.removeItem("authToken");
   updateAuthUI();
-  appContent.style.display = 'none';
+  appContent.style.display = "none";
 }
 
 function updateAuthUI() {
   if (authToken) {
-    authButtons.style.display = 'none';
-    userInfo.style.display = 'block';
-    usernameDisplay.textContent = currentUser?.username || 'User';
-    appContent.style.display = 'block';
+    authButtons.style.display = "none";
+    userInfo.style.display = "block";
+    usernameDisplay.textContent = currentUser?.username || "User";
+    appContent.style.display = "block";
   } else {
-    authButtons.style.display = 'block';
-    userInfo.style.display = 'none';
-    appContent.style.display = 'none';
+    authButtons.style.display = "block";
+    userInfo.style.display = "none";
+    appContent.style.display = "none";
   }
 }
 
@@ -146,10 +150,45 @@ let radarChart = new Chart(radarCtx, {
       {
         label: "Your profile",
         data: [1, 1, 1, 1, 1],
-        backgroundColor: "rgba(106,166,217,0.2)",
-        borderColor: "#2b6fb3",
+        backgroundColor: "rgba(0, 212, 255, 0.3)",
+        borderColor: "#00d4ff",
+        borderWidth: 3,
+        pointBackgroundColor: "#00d4ff",
+        pointBorderColor: "#fff",
+        pointHoverBackgroundColor: "#fff",
+        pointHoverBorderColor: "#00d4ff",
+        pointRadius: 5,
+        pointHoverRadius: 7,
       },
     ],
+  },
+  options: {
+    scales: {
+      r: {
+        beginAtZero: true,
+        max: 5,
+        ticks: {
+          color: "#cbd5e1",
+          backdropColor: "transparent",
+          font: { size: 12 },
+        },
+        grid: {
+          color: "rgba(0, 212, 255, 0.2)",
+        },
+        pointLabels: {
+          color: "#ffffff",
+          font: { size: 14, weight: "bold" },
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        labels: {
+          color: "#ffffff",
+          font: { size: 14 },
+        },
+      },
+    },
   },
 });
 
@@ -163,11 +202,51 @@ let moodChart = new Chart(moodCtx, {
       {
         label: "Mood",
         data: [],
-        borderColor: "#6aa6d9",
-        backgroundColor: "rgba(106,166,217,0.12)",
-        tension: 0.2,
+        borderColor: "#00d4ff",
+        backgroundColor: "rgba(0, 212, 255, 0.2)",
+        borderWidth: 3,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: "#00d4ff",
+        pointBorderColor: "#fff",
+        pointHoverBackgroundColor: "#fff",
+        pointHoverBorderColor: "#00d4ff",
+        pointRadius: 5,
+        pointHoverRadius: 7,
       },
     ],
+  },
+  options: {
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 10,
+        ticks: {
+          color: "#cbd5e1",
+          font: { size: 12 },
+        },
+        grid: {
+          color: "rgba(0, 212, 255, 0.15)",
+        },
+      },
+      x: {
+        ticks: {
+          color: "#cbd5e1",
+          font: { size: 12 },
+        },
+        grid: {
+          color: "rgba(0, 212, 255, 0.1)",
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        labels: {
+          color: "#ffffff",
+          font: { size: 14 },
+        },
+      },
+    },
   },
 });
 
@@ -180,7 +259,7 @@ async function loadMood() {
     moodChart.data.datasets[0].data = values;
     moodChart.update();
   } catch (error) {
-    console.error('Failed to load mood:', error);
+    console.error("Failed to load mood:", error);
   }
 }
 
@@ -208,11 +287,11 @@ document.getElementById("mood-checkin").addEventListener("click", async () => {
   );
   if (!mood) return;
   try {
-    await postJSON('/api/mood-checkin', { mood });
+    await postJSON("/api/mood-checkin", { mood });
     await loadMood();
     alert("Mood saved successfully.");
   } catch (error) {
-    alert('Failed to save mood: ' + error.message);
+    alert("Failed to save mood: " + error.message);
   }
 });
 
@@ -227,7 +306,7 @@ document
         const a = parseInt(prompt(q.text + " (1-5)"));
         if (a && a >= 1 && a <= 5) answers[q.id] = a;
       }
-      const body = await postJSON('/api/personality-test/results', { answers });
+      const body = await postJSON("/api/personality-test/results", { answers });
       const labels = [
         "Openness",
         "Conscientiousness",
@@ -241,7 +320,7 @@ document
       console.log(body);
       alert("Personality results loaded. See console for details.");
     } catch (error) {
-      alert('Assessment failed: ' + error.message);
+      alert("Assessment failed: " + error.message);
     }
   });
 
@@ -270,7 +349,7 @@ async function sendMessage() {
   chatMessages.push({ role: "user", content: text });
 
   try {
-    const data = await postJSON('/api/chat', { messages: chatMessages });
+    const data = await postJSON("/api/chat", { messages: chatMessages });
     const reply = data.choices[0].message.content;
     addMessage("assistant", reply);
     chatMessages.push({ role: "assistant", content: reply });
@@ -297,9 +376,9 @@ async function initializeApp() {
 
 // Check if user is already logged in
 if (authToken) {
-  fetch('/api/auth/me', { headers: getAuthHeaders() })
-    .then(res => res.json())
-    .then(user => {
+  fetch("/api/auth/me", { headers: getAuthHeaders() })
+    .then((res) => res.json())
+    .then((user) => {
       currentUser = user;
       updateAuthUI();
       initializeApp();
