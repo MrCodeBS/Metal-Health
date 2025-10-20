@@ -8,12 +8,14 @@ const connectDB = require("./config/database");
 const { authenticateToken, generateToken } = require("./middleware/auth");
 const User = require("./models/User");
 const PersonalityAssessment = require("./models/PersonalityAssessment");
+const ChatHistory = require("./models/ChatHistory");
 
 const assessmentService = require("./services/assessmentService");
 const psychologyService = require("./services/psychologyService");
 const moodService = require("./services/moodService");
 const techniqueService = require("./services/techniqueService");
 const llmService = require("./services/llmService");
+const clinicalNoteService = require("./services/clinicalNoteService");
 
 // Connect to MongoDB
 connectDB();
@@ -226,10 +228,125 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     }
 
     const response = await llmService.chat(messages);
+
+    // Save chat history
+    await ChatHistory.create({
+      userId,
+      messages: messages.concat([{
+        role: 'assistant',
+        content: response.content
+      }])
+    });
+
+    // Check if clinical note should be generated
+    const userContextData = await clinicalNoteService.getUserContext(userId);
+    const analysis = clinicalNoteService.analyzeConversation(messages, userContextData);
+    
+    if (analysis.needsNote) {
+      // Determine trigger type
+      let triggerType = 'conversation_count';
+      if (analysis.severity === 'urgent') {
+        triggerType = 'crisis_keywords';
+      } else if (analysis.concerningPatterns.some(p => p.pattern.includes('mood'))) {
+        triggerType = 'mood_pattern';
+      }
+      
+      // Generate clinical note asynchronously (don't block response)
+      clinicalNoteService.generateClinicalNote(
+        userId,
+        messages.concat([{ role: 'assistant', content: response.content }]),
+        userContextData,
+        triggerType
+      ).catch(err => console.error('Failed to generate clinical note:', err));
+      
+      console.log(`Clinical note will be generated for user ${userId} - Severity: ${analysis.severity}`);
+    }
+
     res.json(response);
   } catch (error) {
     console.error("Chat error:", error);
     res.status(500).json({ error: "Failed to process chat request" });
+  }
+});
+
+// Clinical Notes Endpoints (for psychiatrists/admin)
+const ClinicalNote = require("./models/ClinicalNote");
+
+// Get all clinical notes with filtering
+app.get("/api/clinical-notes", authenticateToken, async (req, res) => {
+  try {
+    const { severity, reviewed, userId } = req.query;
+    
+    const filter = {};
+    if (severity) filter.severity = severity;
+    if (reviewed !== undefined) filter.reviewed = reviewed === 'true';
+    if (userId) filter.userId = userId;
+    
+    const notes = await ClinicalNote.find(filter)
+      .populate('userId', 'username email')
+      .sort({ createdAt: -1 })
+      .limit(100);
+    
+    res.json(notes);
+  } catch (error) {
+    console.error("Failed to fetch clinical notes:", error);
+    res.status(500).json({ error: "Failed to fetch clinical notes" });
+  }
+});
+
+// Get specific clinical note by ID
+app.get("/api/clinical-notes/:id", authenticateToken, async (req, res) => {
+  try {
+    const note = await ClinicalNote.findById(req.params.id)
+      .populate('userId', 'username email');
+    
+    if (!note) {
+      return res.status(404).json({ error: "Clinical note not found" });
+    }
+    
+    res.json(note);
+  } catch (error) {
+    console.error("Failed to fetch clinical note:", error);
+    res.status(500).json({ error: "Failed to fetch clinical note" });
+  }
+});
+
+// Mark clinical note as reviewed
+app.patch("/api/clinical-notes/:id/review", authenticateToken, async (req, res) => {
+  try {
+    const { reviewNotes } = req.body;
+    
+    const note = await ClinicalNote.findById(req.params.id);
+    if (!note) {
+      return res.status(404).json({ error: "Clinical note not found" });
+    }
+    
+    note.reviewed = true;
+    note.reviewedBy = req.user.username;
+    note.reviewedAt = new Date();
+    if (reviewNotes) {
+      note.reviewNotes = reviewNotes;
+    }
+    
+    await note.save();
+    res.json(note);
+  } catch (error) {
+    console.error("Failed to review clinical note:", error);
+    res.status(500).json({ error: "Failed to review clinical note" });
+  }
+});
+
+// Get clinical notes for current user (patient view)
+app.get("/api/my-clinical-notes", authenticateToken, async (req, res) => {
+  try {
+    const notes = await ClinicalNote.find({ userId: req.user.userId })
+      .sort({ createdAt: -1 })
+      .select('-conversationContext'); // Don't expose full conversation to patient
+    
+    res.json(notes);
+  } catch (error) {
+    console.error("Failed to fetch user clinical notes:", error);
+    res.status(500).json({ error: "Failed to fetch clinical notes" });
   }
 });
 

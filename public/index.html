@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MindBot - Your Psychology Insights Companion</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>MindBot</h1>
+    <p class="tagline">Friendly, private psychology insights</p>
+    <div id="auth-section">
+      <div id="auth-buttons">
+        <button id="show-login">Login</button>
+        <button id="show-register">Register</button>
+      </div>
+      <div id="user-info" style="display:none;">
+        <span id="username-display"></span>
+        <button id="logout-btn">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 id="modal-title">Login</h2>
+      <form id="auth-form">
+        <div id="username-field" style="display:none;">
+          <label for="auth-username">Username:</label>
+          <input type="text" id="auth-username" placeholder="Choose a username">
+        </div>
+        <div>
+          <label for="auth-email">Email:</label>
+          <input type="email" id="auth-email" required placeholder="your@email.com">
+        </div>
+        <div>
+          <label for="auth-password">Password:</label>
+          <input type="password" id="auth-password" required placeholder="••••••••">
+        </div>
+        <button type="submit" id="auth-submit">Login</button>
+      </form>
+      <div id="auth-error" class="error-msg"></div>
+    </div>
+  </div>
+
+  <div id="app-content" style="display:none;">
+    <div class="cards">
+      <!-- Personality Card -->
+      <div class="card">
+        <h2>Personality</h2>
+        <button id="start-assessment">Start personality assessment</button>
+        <div style="margin-top:20px;">
+          <label style="margin-bottom:10px; display:block;">Your profile</label>
+          <canvas id="personalityRadar" width="300" height="300"></canvas>
+        </div>
+      </div>
+
+      <!-- Mood Card -->
+      <div class="card">
+        <h2>Mood</h2>
+        <button id="mood-checkin-btn">Take 5-minute mood check</button>
+        <div style="margin-top:20px;">
+          <label style="margin-bottom:10px; display:block;">Mood</label>
+          <canvas id="moodChart" width="400" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Technique Card -->
+      <div class="card">
+        <h2>Technique</h2>
+        <button id="get-breathing">Get breathing exercise</button>
+        <div id="technique"></div>
+      </div>
+
+      <!-- Insight Card -->
+      <div class="card">
+        <h2>Insight</h2>
+        <button id="random-fact">Random psychology insight</button>
+        <div id="fact"></div>
+      </div>
+    </div>
+
+    <!-- Chat Section -->
+    <div class="chat-section">
+      <div class="chat-card">
+        <h2>AI Mental Health Assistant</h2>
+        <div id="chat-messages"></div>
+        <div class="chat-input-area">
+          <input type="text" id="chat-input" placeholder="Ask me anything about mental health..." />
+          <button id="send-btn">Send</button>
+        </div>
+        <p class="chat-note">
+          This AI provides general information only. For mental health emergencies, call 988 (US) or your local crisis line.
+        </p>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      MindBot is for educational purposes. Not a substitute for professional mental health care.
+      If you're in crisis, please contact a mental health professional or emergency services.
+    </div>
+  </div>
+
+  <!-- Mood Check-in Modal -->
+  <div id="mood-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" id="mood-close">&times;</span>
+      <h2>Daily Mood Check-in</h2>
+      <form id="mood-form">
+        <div>
+          <label for="mood-score">How are you feeling? (1-10)</label>
+          <input type="number" id="mood-score" min="1" max="10" value="5" required>
+        </div>
+        <div>
+          <label for="stress-score">Stress level? (1-10)</label>
+          <input type="number" id="stress-score" min="1" max="10" value="5" required>
+        </div>
+        <div>
+          <label for="mood-notes">Any notes? (optional)</label>
+          <textarea id="mood-notes" rows="3" placeholder="How's your day going?"></textarea>
+        </div>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

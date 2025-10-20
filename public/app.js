@@ -2,6 +2,10 @@
 let authToken = localStorage.getItem("authToken");
 let currentUser = null;
 
+// Wait for DOM to be fully loaded
+document.addEventListener("DOMContentLoaded", function() {
+  console.log("App initializing...");
+  
 // Set auth header for all requests
 function getAuthHeaders() {
   return authToken
@@ -46,6 +50,8 @@ const authButtons = document.getElementById("auth-buttons");
 const userInfo = document.getElementById("user-info");
 const usernameDisplay = document.getElementById("username-display");
 const appContent = document.getElementById("app-content");
+
+console.log("Auth elements:", { authModal, showLoginBtn, showRegisterBtn, logoutBtn });
 
 let isRegisterMode = false;
 
@@ -276,20 +282,49 @@ async function loadTechnique() {
   ).innerHTML = `<h4>${t.title}</h4><p>${t.description}</p>`;
 }
 
-document.getElementById("random-fact").addEventListener("click", loadFact);
+document.getElementById("random-fact").addEventListener("click", () => {
+  console.log("Random fact button clicked");
+  loadFact();
+});
 document
   .getElementById("get-breathing")
-  .addEventListener("click", loadTechnique);
+  .addEventListener("click", () => {
+    console.log("Get breathing button clicked");
+    loadTechnique();
+  });
 
-document.getElementById("mood-checkin").addEventListener("click", async () => {
-  const mood = parseInt(
-    prompt("On a scale 1 (low) to 10 (high), how is your mood today?")
-  );
-  if (!mood) return;
+// Mood modal functionality
+const moodModal = document.getElementById("mood-modal");
+const moodCloseBtn = document.getElementById("mood-close");
+const moodForm = document.getElementById("mood-form");
+
+document.getElementById("mood-checkin-btn").addEventListener("click", () => {
+  console.log("Mood checkin button clicked");
+  moodModal.style.display = "flex";
+});
+
+moodCloseBtn.addEventListener("click", () => {
+  moodModal.style.display = "none";
+});
+
+window.addEventListener("click", (e) => {
+  if (e.target === moodModal) {
+    moodModal.style.display = "none";
+  }
+});
+
+moodForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const mood = parseInt(document.getElementById("mood-score").value);
+  const stressLevel = parseInt(document.getElementById("stress-score").value);
+  const notes = document.getElementById("mood-notes").value;
+  
   try {
-    await postJSON("/api/mood-checkin", { mood });
+    await postJSON("/api/mood-checkin", { mood, stressLevel, notes });
     await loadMood();
-    alert("Mood saved successfully.");
+    moodModal.style.display = "none";
+    moodForm.reset();
+    alert("Mood saved successfully!");
   } catch (error) {
     alert("Failed to save mood: " + error.message);
   }
@@ -328,7 +363,7 @@ document
 const chatMessages = [];
 const chatMessagesDiv = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
-const sendBtn = document.getElementById("send-chat");
+const sendBtn = document.getElementById("send-btn");
 
 function addMessage(role, content) {
   const msgDiv = document.createElement("div");
@@ -362,9 +397,15 @@ async function sendMessage() {
   }
 }
 
-sendBtn.addEventListener("click", sendMessage);
+sendBtn.addEventListener("click", () => {
+  console.log("Send button clicked");
+  sendMessage();
+});
 chatInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") sendMessage();
+  if (e.key === "Enter") {
+    console.log("Enter key pressed in chat");
+    sendMessage();
+  }
 });
 
 // Initialize app
@@ -389,3 +430,5 @@ if (authToken) {
 } else {
   updateAuthUI();
 }
+
+}); // End DOMContentLoaded
