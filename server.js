@@ -9,6 +9,7 @@ const { authenticateToken, generateToken } = require("./middleware/auth");
 const User = require("./models/User");
 const PersonalityAssessment = require("./models/PersonalityAssessment");
 const ChatHistory = require("./models/ChatHistory");
+const ErgotherapyCheckIn = require("./models/ErgotherapyCheckIn");
 
 const assessmentService = require("./services/assessmentService");
 const psychologyService = require("./services/psychologyService");
@@ -17,6 +18,7 @@ const techniqueService = require("./services/techniqueService");
 const llmService = require("./services/llmService");
 const clinicalNoteService = require("./services/clinicalNoteService");
 const appleHealthService = require("./services/appleHealthService");
+const ergotherapyService = require("./services/ergotherapyService");
 const multer = require("multer");
 const fs = require("fs");
 
@@ -671,6 +673,159 @@ app.get("/api/my-clinical-notes", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch user clinical notes:", error);
     res.status(500).json({ error: "Failed to fetch clinical notes" });
+  }
+});
+
+// ==================== ERGOTHERAPY ENDPOINTS ====================
+// Get friendly activity prompt
+app.get("/api/ergotherapy/prompt", authenticateToken, (req, res) => {
+  try {
+    const prompt = ergotherapyService.getActivityPrompt();
+    res.json({ prompt });
+  } catch (error) {
+    console.error("Failed to get ergotherapy prompt:", error);
+    res.status(500).json({ error: "Failed to get prompt" });
+  }
+});
+
+// Get all available ergotherapy activities
+app.get("/api/ergotherapy/activities", authenticateToken, (req, res) => {
+  try {
+    const activities = ergotherapyService.getAvailableActivities();
+    res.json({ activities });
+  } catch (error) {
+    console.error("Failed to get ergotherapy activities:", error);
+    res.status(500).json({ error: "Failed to get activities" });
+  }
+});
+
+// Get a specific activity with questions
+app.get(
+  "/api/ergotherapy/activity/:activityId",
+  authenticateToken,
+  (req, res) => {
+    try {
+      const { activityId } = req.params;
+      const activity = ergotherapyService.getActivity(activityId);
+
+      if (!activity) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+
+      res.json({ activity });
+    } catch (error) {
+      console.error("Failed to get ergotherapy activity:", error);
+      res.status(500).json({ error: "Failed to get activity" });
+    }
+  }
+);
+
+// Submit ergotherapy check-in responses
+app.post("/api/ergotherapy/checkin", authenticateToken, async (req, res) => {
+  try {
+    const { activityId, responses } = req.body;
+
+    if (!activityId || !responses) {
+      return res
+        .status(400)
+        .json({ error: "Activity ID and responses required" });
+    }
+
+    // Process responses and get suggestions
+    const result = ergotherapyService.processResponses(activityId, responses);
+
+    if (result.error) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    // Save to database
+    const checkIn = new ErgotherapyCheckIn({
+      userId: req.user.userId,
+      activityType: activityId,
+      responses: responses,
+      suggestions: result.suggestions,
+    });
+
+    await checkIn.save();
+
+    res.json({
+      ...result,
+      checkInId: checkIn._id,
+      message: "Check-in saved successfully",
+    });
+  } catch (error) {
+    console.error("Failed to process ergotherapy check-in:", error);
+    res.status(500).json({ error: "Failed to process check-in" });
+  }
+});
+
+// Get user's ergotherapy history
+app.get("/api/ergotherapy/history", authenticateToken, async (req, res) => {
+  try {
+    const { limit = 10, activityType } = req.query;
+
+    const query = { userId: req.user.userId };
+    if (activityType) {
+      query.activityType = activityType;
+    }
+
+    const history = await ErgotherapyCheckIn.find(query)
+      .sort({ date: -1 })
+      .limit(parseInt(limit));
+
+    res.json({ history });
+  } catch (error) {
+    console.error("Failed to fetch ergotherapy history:", error);
+    res.status(500).json({ error: "Failed to fetch history" });
+  }
+});
+
+// Get ergotherapy summary/stats
+app.get("/api/ergotherapy/summary", authenticateToken, async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+
+    const checkIns = await ErgotherapyCheckIn.find({
+      userId: req.user.userId,
+      date: { $gte: startDate },
+    }).sort({ date: -1 });
+
+    // Calculate summary stats
+    const totalCheckIns = checkIns.length;
+    const activityBreakdown = {};
+    let avgEnergyLevel = 0;
+    let energyCount = 0;
+
+    checkIns.forEach((checkIn) => {
+      // Count by activity type
+      activityBreakdown[checkIn.activityType] =
+        (activityBreakdown[checkIn.activityType] || 0) + 1;
+
+      // Calculate average energy level if available
+      const energyResponse = checkIn.responses.get("energy_level");
+      if (energyResponse) {
+        avgEnergyLevel += energyResponse;
+        energyCount++;
+      }
+    });
+
+    if (energyCount > 0) {
+      avgEnergyLevel = avgEnergyLevel / energyCount;
+    }
+
+    res.json({
+      period: `${days} days`,
+      totalCheckIns,
+      activityBreakdown,
+      avgEnergyLevel:
+        energyCount > 0 ? Math.round(avgEnergyLevel * 10) / 10 : null,
+      recentCheckIns: checkIns.slice(0, 5),
+    });
+  } catch (error) {
+    console.error("Failed to get ergotherapy summary:", error);
+    res.status(500).json({ error: "Failed to get summary" });
   }
 });
 

@@ -51,7 +51,6 @@
 
 ## Your MongoDB Atlas Connection:
 ```
-mongodb+srv://singhbhupider206_db_user:fVzZKPQZ6YJNdEUm@mental-data.le2zkbz.mongodb.net/mindbot
 ```
 
 ✅ Password is correct  

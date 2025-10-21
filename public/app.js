@@ -870,12 +870,309 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // ==================== ERGOTHERAPY WELLNESS CHECK-IN ====================
+  const showErgoActivitiesBtn = document.getElementById("show-ergo-activities");
+  const ergoActivitiesDiv = document.getElementById("ergo-activities");
+  const ergoContent = document.getElementById("ergo-content");
+  const ergoPrompt = document.getElementById("ergo-prompt");
+
+  let currentActivity = null;
+  let currentResponses = {};
+
+  // Load friendly prompt
+  async function loadErgoPrompt() {
+    try {
+      const data = await getJSON("/api/ergotherapy/prompt");
+      ergoPrompt.textContent = data.prompt;
+    } catch (error) {
+      console.error("Failed to load ergotherapy prompt:", error);
+    }
+  }
+
+  // Show activity buttons
+  showErgoActivitiesBtn.addEventListener("click", () => {
+    if (ergoActivitiesDiv.style.display === "none") {
+      ergoActivitiesDiv.style.display = "block";
+      showErgoActivitiesBtn.textContent = "✨ Hide Activities";
+      ergoContent.innerHTML = "";
+    } else {
+      ergoActivitiesDiv.style.display = "none";
+      showErgoActivitiesBtn.textContent = "✨ Try a Wellness Activity";
+      ergoContent.innerHTML = "";
+    }
+  });
+
+  // Handle activity selection
+  document.querySelectorAll(".ergo-activity-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const activityId = btn.dataset.activity;
+      await loadErgoActivity(activityId);
+    });
+  });
+
+  // Load specific activity
+  async function loadErgoActivity(activityId) {
+    try {
+      ergoContent.innerHTML = '<p style="color: #00d4ff">⏳ Loading...</p>';
+
+      const data = await getJSON(`/api/ergotherapy/activity/${activityId}`);
+      currentActivity = data.activity;
+      currentResponses = {};
+
+      renderErgoQuestions(data.activity);
+    } catch (error) {
+      console.error("Failed to load ergotherapy activity:", error);
+      ergoContent.innerHTML =
+        '<p style="color: #ff6b6b">Failed to load activity. Please try again.</p>';
+    }
+  }
+
+  // Render questions
+  function renderErgoQuestions(activity) {
+    let html = `
+      <div style="background: rgba(16, 185, 129, 0.15); padding: 25px; border-radius: 12px; margin-top: 15px; border: 1px solid rgba(16, 185, 129, 0.3)">
+        <h3 style="margin: 0 0 10px 0; color: #10b981; font-size: 1.4rem">${activity.icon} ${activity.title}</h3>
+        <p style="font-size: 0.95em; color: #cbd5e1; margin-bottom: 25px; line-height: 1.6">${activity.description}</p>
+        <div id="ergo-questions-container"></div>
+        <div style="margin-top: 25px; display: flex; gap: 10px; flex-wrap: wrap">
+          <button id="submit-ergo-responses" style="background: #10b981; padding: 12px 24px; font-size: 1rem">
+            ✓ Submit (Optional)
+          </button>
+          <button id="cancel-ergo" style="background: #6b7280; padding: 12px 24px; font-size: 1rem">
+            ← Not Now
+          </button>
+        </div>
+      </div>
+    `;
+
+    ergoContent.innerHTML = html;
+
+    const questionsContainer = document.getElementById(
+      "ergo-questions-container"
+    );
+
+    activity.questions.forEach((question, index) => {
+      const questionHtml = renderErgoQuestion(question, index);
+      questionsContainer.innerHTML += questionHtml;
+    });
+
+    // Add event listeners
+    document
+      .getElementById("submit-ergo-responses")
+      .addEventListener("click", submitErgoResponses);
+    document.getElementById("cancel-ergo").addEventListener("click", () => {
+      ergoContent.innerHTML = "";
+      ergoActivitiesDiv.style.display = "none";
+      showErgoActivitiesBtn.textContent = "✨ Try a Wellness Activity";
+    });
+
+    // Add change listeners for responses
+    activity.questions.forEach((question) => {
+      const elements = document.querySelectorAll(`[name="${question.id}"]`);
+      elements.forEach((el) => {
+        el.addEventListener("change", (e) => {
+          if (question.type === "multiple") {
+            const checked = Array.from(elements)
+              .filter((cb) => cb.checked)
+              .map((cb) => cb.value);
+            currentResponses[question.id] = checked;
+          } else {
+            currentResponses[question.id] = e.target.value;
+          }
+        });
+      });
+    });
+  }
+
+  // Render individual question
+  function renderErgoQuestion(question, index) {
+    let html = `
+      <div>
+        <label>
+          ${question.question}
+          ${
+            question.optional
+              ? '<span style="opacity: 0.7; font-size: 0.85em"> (optional)</span>'
+              : ""
+          }
+        </label>
+    `;
+
+    if (question.type === "scale") {
+      html += `
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px">
+          <span>${question.scale.minLabel}</span>
+          <input type="range" name="${question.id}" min="${question.scale.min}" 
+                 max="${question.scale.max}" value="${Math.floor(
+        (question.scale.min + question.scale.max) / 2
+      )}"
+                 style="flex: 1" />
+          <span>${question.scale.maxLabel}</span>
+          <output id="${
+            question.id
+          }-value" style="min-width: 40px; text-align: center">
+            ${Math.floor((question.scale.min + question.scale.max) / 2)}
+          </output>
+        </div>
+      `;
+    } else if (question.type === "choice") {
+      question.options.forEach((option) => {
+        html += `
+          <div style="margin: 10px 0">
+            <label style="cursor: pointer; display: flex; align-items: flex-start; gap: 8px">
+              <input type="radio" name="${question.id}" value="${option.value}" />
+              <span>${option.label}</span>
+            </label>
+          </div>
+        `;
+      });
+    } else if (question.type === "multiple") {
+      question.options.forEach((option) => {
+        html += `
+          <div style="margin: 10px 0">
+            <label style="cursor: pointer; display: flex; align-items: flex-start; gap: 8px">
+              <input type="checkbox" name="${question.id}" value="${option.value}" />
+              <span>${option.label}</span>
+            </label>
+          </div>
+        `;
+      });
+    } else if (question.type === "number") {
+      html += `
+        <input type="number" name="${question.id}" min="${question.min || 0}" 
+               max="${question.max || 100}" placeholder="Enter hours..." />
+      `;
+    }
+
+    html += `</div>`;
+
+    // Add event listener for range slider output
+    setTimeout(() => {
+      const slider = document.querySelector(
+        `input[name="${question.id}"][type="range"]`
+      );
+      if (slider) {
+        const output = document.getElementById(`${question.id}-value`);
+        slider.addEventListener("input", (e) => {
+          output.textContent = e.target.value;
+          currentResponses[question.id] = parseInt(e.target.value);
+        });
+        // Initialize
+        currentResponses[question.id] = parseInt(slider.value);
+      }
+    }, 100);
+
+    return html;
+  }
+
+  // Submit responses
+  async function submitErgoResponses() {
+    try {
+      const submitBtn = document.getElementById("submit-ergo-responses");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Processing...";
+
+      const activityId =
+        Object.keys(ergotherapyActivities).find(
+          (key) => ergotherapyActivities[key] === currentActivity
+        ) || getActivityIdFromTitle(currentActivity.title);
+
+      const result = await postJSON("/api/ergotherapy/checkin", {
+        activityId: activityId,
+        responses: currentResponses,
+      });
+
+      displayErgoResults(result);
+    } catch (error) {
+      console.error("Failed to submit ergotherapy responses:", error);
+      ergoContent.innerHTML +=
+        '<p style="color: #ff6b6b; margin-top: 15px">Failed to process. Please try again.</p>';
+    }
+  }
+
+  // Helper to get activity ID from title
+  function getActivityIdFromTitle(title) {
+    const mapping = {
+      "🔋 Energy Management": "energyManagement",
+      "🏠 Daily Activities Check": "dailyActivities",
+      "⚖️ Work-Life Balance": "workLifeBalance",
+      "🩹 Pain & Discomfort Check": "painDiscomfort",
+    };
+    return mapping[title] || "energyManagement";
+  }
+
+  // Display results and suggestions
+  function displayErgoResults(result) {
+    let html = `
+      <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; margin-top: 15px">
+        <h3 style="margin: 0 0 15px 0; color: #10b981">✨ Your Wellness Insights</h3>
+    `;
+
+    // Display suggestions
+    if (result.suggestions && result.suggestions.length > 0) {
+      result.suggestions.forEach((suggestion) => {
+        html += `
+          <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px">
+            <h4 style="margin: 0 0 10px 0; color: #00d4ff">${suggestion.icon} ${
+          suggestion.title
+        }</h4>
+            <ul style="margin: 0; padding-left: 20px">
+              ${suggestion.tips
+                .map((tip) => `<li style="margin: 5px 0">${tip}</li>`)
+                .join("")}
+            </ul>
+          </div>
+        `;
+      });
+    }
+
+    // Display encouragement
+    if (result.encouragement) {
+      html += `
+        <div style="text-align: center; margin-top: 15px; padding: 15px; 
+                    background: rgba(99, 102, 241, 0.1); border-radius: 8px">
+          <p style="margin: 0; font-style: italic; color: #00d4ff">${result.encouragement}</p>
+        </div>
+      `;
+    }
+
+    html += `
+        <div style="margin-top: 20px; text-align: center">
+          <button id="another-checkin" style="background: #10b981; margin-right: 10px">
+            Try Another Check-In
+          </button>
+          <button id="close-ergo" style="background: #6b7280">
+            Close
+          </button>
+        </div>
+      </div>
+    `;
+
+    ergoContent.innerHTML = html;
+
+    // Add event listeners
+    document.getElementById("another-checkin").addEventListener("click", () => {
+      ergoContent.innerHTML = "";
+      ergoActivitiesDiv.style.display = "block";
+    });
+
+    document.getElementById("close-ergo").addEventListener("click", () => {
+      ergoContent.innerHTML = "";
+      ergoActivitiesDiv.style.display = "none";
+      showErgoActivitiesBtn.textContent = "✨ Try a Wellness Activity";
+    });
+  }
+
+  // Mock activities object for ID lookup (would be better to store activityId in loadErgoActivity)
+  const ergotherapyActivities = {};
+
   // Initialize app
   async function initializeApp() {
     loadMood();
     loadFact();
     loadTechnique();
     loadHealthMetrics(); // Load health data automatically
+    loadErgoPrompt(); // Load ergotherapy prompt
   }
 
   // Check if user is already logged in

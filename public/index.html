@@ -65,11 +65,30 @@
       <div class="cards">
         <!-- Personality Card -->
         <div class="card">
-          <h2>Personality</h2>
-          <button id="start-assessment">Start personality assessment</button>
+          <h2>🧠 Personality</h2>
+          <p style="font-size: 0.9em; opacity: 0.8; margin-bottom: 15px">
+            Discover your Big Five personality traits
+          </p>
+          <button
+            id="start-assessment"
+            style="
+              background: linear-gradient(135deg, #00d4ff, #a855f7);
+              border: none;
+              font-weight: 600;
+            "
+          >
+            START PERSONALITY ASSESSMENT
+          </button>
           <div style="margin-top: 20px">
-            <label style="margin-bottom: 10px; display: block"
-              >Your profile</label
+            <label
+              style="
+                margin-bottom: 10px;
+                display: block;
+                font-size: 1rem;
+                font-weight: 500;
+                color: #00d4ff;
+              "
+              >📊 Your profile</label
             >
             <canvas id="personalityRadar" width="300" height="300"></canvas>
           </div>
@@ -77,10 +96,32 @@
 
         <!-- Mood Card -->
         <div class="card">
-          <h2>Mood</h2>
-          <button id="mood-checkin-btn">Take 5-minute mood check</button>
+          <h2>💭 Mood</h2>
+          <p style="font-size: 0.9em; opacity: 0.8; margin-bottom: 15px">
+            Track your emotional wellbeing
+          </p>
+          <button
+            id="mood-checkin-btn"
+            style="
+              background: linear-gradient(135deg, #ec4899, #a855f7);
+              border: none;
+              font-weight: 600;
+            "
+          >
+            TAKE 5-MINUTE MOOD CHECK
+          </button>
           <div style="margin-top: 20px">
-            <label style="margin-bottom: 10px; display: block">Mood</label>
+            <label
+              style="
+                margin-bottom: 10px;
+                display: block;
+                font-size: 1rem;
+                font-weight: 500;
+                color: #ec4899;
+              "
+            >
+              📈 Mood
+            </label>
             <canvas id="moodChart" width="400" height="200"></canvas>
           </div>
         </div>
@@ -113,6 +154,47 @@
             Grounding (5-4-3-2-1)
           </button>
           <div id="dbt-skill" style="margin-top: 15px"></div>
+        </div>
+
+        <!-- Ergotherapy Card (NEW) -->
+        <div class="card" id="ergotherapy-card">
+          <h2>🌱 Wellness Check-In</h2>
+          <p
+            style="font-size: 0.9em; opacity: 0.8; margin-bottom: 15px"
+            id="ergo-prompt"
+          >
+            Optional activities to support your daily life (no pressure!)
+          </p>
+          <div id="ergo-activities" style="display: none">
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-bottom: 15px;
+              "
+            >
+              <button
+                class="ergo-activity-btn"
+                data-activity="energyManagement"
+              >
+                🔋 Energy Check
+              </button>
+              <button class="ergo-activity-btn" data-activity="dailyActivities">
+                🏠 Daily Tasks
+              </button>
+              <button class="ergo-activity-btn" data-activity="workLifeBalance">
+                ⚖️ Work Balance
+              </button>
+              <button class="ergo-activity-btn" data-activity="painDiscomfort">
+                🩹 Comfort Check
+              </button>
+            </div>
+          </div>
+          <button id="show-ergo-activities" style="background: #10b981">
+            ✨ Try a Wellness Activity
+          </button>
+          <div id="ergo-content" style="margin-top: 15px"></div>
         </div>
 
         <!-- Apple Health Card -->
